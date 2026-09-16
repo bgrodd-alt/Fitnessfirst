@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#170F2B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fuel">
+<title>Fuel — macro tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%97%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ---------- design tokens ---------- */
+  :root{
+    --ink:#170F2B;
+    --panel:#20153C;
+    --panel-soft:#2A1B4E;
+    --text:#F5F1FF;
+    --text-muted:#9C8FC2;
+    --cal-1:#FF6B4A;
+    --cal-2:#FFB84C;
+    --pro-1:#4ADEDE;
+    --pro-2:#8B6BFF;
+    --gold:#FFD23F;
+    --track:rgba(255,255,255,0.08);
+    --radius-lg:24px;
+    --radius-md:16px;
+    --radius-sm:10px;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0;
+    padding:0;
+    background:radial-gradient(circle at 18% -8%, #2E1E58 0%, #170F2B 55%) fixed;
+    color:var(--text);
+    font-family:'Manrope', sans-serif;
+    min-height:100vh;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  h1,h2,.numeral{ font-family:'Space Grotesk', sans-serif; }
+
+  button, input, select{ font-family:inherit; }
+
+  :focus-visible{
+    outline:2px solid var(--gold);
+    outline-offset:2px;
+  }
+
+  .app{
+    max-width:480px;
+    margin:0 auto;
+    padding:20px 18px 60px;
+  }
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:6px;
+  }
+
+  .brand{
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:0.01em;
+  }
+
+  .icon-btn{
+    background:var(--panel);
+    border:1px solid rgba(255,255,255,0.08);
+    color:var(--text);
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    font-size:17px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition:background 0.15s ease;
+  }
+  .icon-btn:hover{ background:var(--panel-soft); }
+
+  .date-nav{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    margin:8px 0 22px;
+    color:var(--text-muted);
+  }
+  .date-nav button{
+    background:none;
+    border:none;
+    color:var(--text-muted);
+    font-size:22px;
+    line-height:1;
+    padding:6px 10px;
+    cursor:pointer;
+    border-radius:8px;
+  }
+  .date-nav button:disabled{ opacity:0.25; cursor:default; }
+  .date-nav button:not(:disabled):hover{ color:var(--text); }
+  .date-label{
+    font-size:14px;
+    font-weight:600;
+    min-width:150px;
+    text-align:center;
+  }
+  .date-label .sub{
+    display:block;
+    font-size:12px;
+    font-weight:500;
+    color:var(--text-muted);
+    margin-top:1px;
+  }
+
+  /* ---------- rings ---------- */
+  .rings{
+    display:flex;
+    justify-content:center;
+    gap:22px;
+    margin-bottom:26px;
+  }
+  .ring-block{
+    position:relative;
+    width:150px;
+    height:150px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    transition:box-shadow 0.4s ease;
+  }
+  .ring-block.over.cal{ box-shadow:0 0 26px 2px rgba(255,178,76,0.45); }
+  .ring-block.over.pro{ box-shadow:0 0 26px 2px rgba(139,107,255,0.45); }
+
+  .ring-svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .ring-track{ fill:none; stroke:var(--track); stroke-width:14; }
+  .ring-progress{
+    fill:none;
+    stroke-width:14;
+    stroke-linecap:round;
+    transition:stroke-dashoffset 0.8s cubic-bezier(.34,1.2,.64,1);
+  }
+  @media (prefers-reduced-motion: reduce){
+    .ring-progress{ transition:none; }
+  }
+
+  .ring-label{
+    position:absolute;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+  }
+  .ring-value{ font-size:26px; font-weight:700; line-height:1; }
+  .ring-goal{ font-size:12px; color:var(--text-muted); margin-top:3px; }
+  .ring-name{ font-size:11px; color:var(--text-muted); margin-top:6px; text-transform:lowercase; }
+  .ring-block.over .ring-value{ color:var(--gold); }
+
+  /* ---------- goals panel ---------- */
+  .goals-panel{
+    background:var(--panel);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:var(--radius-lg);
+    padding:18px;
+    margin-bottom:24px;
+  }
+  .goals-panel h2{ font-size:15px; margin:0 0 14px; }
+  .goals-panel label{
+    display:block;
+    font-size:13px;
+    color:var(--text-muted);
+    margin-bottom:12px;
+  }
+  .goals-panel input{
+    display:block;
+    width:100%;
+    margin-top:6px;
+    background:var(--ink);
+    border:1px solid rgba(255,255,255,0.1);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:var(--radius-sm);
+    font-size:15px;
+  }
+
+  /* ---------- shared buttons ---------- */
+  .primary-btn{
+    width:100%;
+    background:linear-gradient(135deg, var(--pro-2), var(--cal-1));
+    color:#fff;
+    border:none;
+    padding:13px;
+    border-radius:var(--radius-md);
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+    margin-top:4px;
+  }
+  .primary-btn:active{ opacity:0.85; }
+
+  /* ---------- favorites ---------- */
+  .favorites{ margin-bottom:24px; }
+  .favorites h2, .log-list h2, .logform h2{
+    font-size:13px;
+    font-weight:600;
+    color:var(--text-muted);
+    margin:0 0 10px;
+  }
+  .chip-row{
+    display:flex;
+    gap:10px;
+    overflow-x:auto;
+    padding-bottom:4px;
+    scrollbar-width:none;
+  }
+  .chip-row::-webkit-scrollbar{ display:none; }
+  .chip-wrap{ position:relative; flex:0 0 auto; }
+  .chip{
+    background:var(--panel);
+    border:1px solid rgba(255,255,255,0.08);
+    color:var(--text);
+    padding:10px 16px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:600;
+    white-space:nowrap;
+    cursor:pointer;
+  }
+  .chip:active{ background:var(--panel-soft); }
+  .chip-del{
+    position:absolute;
+    top:-6px;
+    right:-6px;
+    width:19px;
+    height:19px;
+    border-radius:50%;
+    background:var(--ink);
+    border:1px solid rgba(255,255,255,0.15);
+    color:var(--text-muted);
+    font-size:12px;
+    line-height:1;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .fav-empty{ font-size:13px; color:var(--text-muted); }
+
+  /* ---------- log form ---------- */
+  .logform{ margin-bottom:26px; }
+  .add-toggle{
+    width:100%;
+    background:var(--panel);
+    border:1px dashed rgba(255,255,255,0.18);
+    color:var(--text);
+    padding:13px;
+    border-radius:var(--radius-md);
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .add-toggle:hover{ background:var(--panel-soft); }
+
+  #foodForm{
+    background:var(--panel);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:var(--radius-lg);
+    padding:16px;
+    margin-top:10px;
+  }
+  .emoji-picker{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    margin-bottom:12px;
+    scrollbar-width:none;
+  }
+  .emoji-picker::-webkit-scrollbar{ display:none; }
+  .emoji-btn{
+    flex:0 0 auto;
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    border:1px solid rgba(255,255,255,0.08);
+    background:var(--ink);
+    font-size:18px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+  }
+  .emoji-btn.selected{ border-color:var(--gold); background:rgba(255,210,63,0.12); }
+
+  .form-row{ margin-bottom:10px; }
+  .form-row.two{ display:flex; gap:10px; }
+  .form-row.two input{ flex:1; min-width:0; }
+  #foodForm input[type="text"], #foodForm input[type="number"]{
+    width:100%;
+    background:var(--ink);
+    border:1px solid rgba(255,255,255,0.1);
+    color:var(--text);
+    padding:11px 12px;
+    border-radius:var(--radius-sm);
+    font-size:15px;
+  }
+  .checkbox-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    color:var(--text-muted);
+    margin:2px 0 14px;
+  }
+  .checkbox-row input{ width:16px; height:16px; accent-color:var(--gold); }
+
+  /* ---------- log list ---------- */
+  .log-list ul{ list-style:none; margin:0; padding:0; }
+  .log-list li{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:12px 0;
+    border-bottom:1px solid rgba(255,255,255,0.07);
+  }
+  .log-list li:last-child{ border-bottom:none; }
+  .log-emoji{
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    background:var(--panel);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:18px;
+    flex:0 0 auto;
+  }
+  .log-info{ flex:1; min-width:0; }
+  .log-name{ font-size:14px; font-weight:600; }
+  .log-meta{ font-size:12px; color:var(--text-muted); margin-top:2px; }
+  .log-del{
+    background:none;
+    border:none;
+    color:var(--text-muted);
+    font-size:18px;
+    cursor:pointer;
+    padding:6px;
+  }
+  .log-del:hover{ color:var(--cal-1); }
+  .empty{ font-size:13px; color:var(--text-muted); padding:10px 0; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">Fuel</div>
+    <button class="icon-btn" id="settingsBtn" aria-label="Edit daily goals">⚙</button>
+  </header>
+
+  <div class="date-nav">
+    <button id="prevDay" aria-label="Previous day">‹</button>
+    <div class="date-label">
+      <span id="dateMain">Today</span>
+      <span class="sub" id="dateSub"></span>
+    </div>
+    <button id="nextDay" aria-label="Next day">›</button>
+  </div>
+
+  <section class="goals-panel" id="goalsPanel" hidden>
+    <h2>Daily goals</h2>
+    <label>Calories
+      <input type="number" id="calGoalInput" min="0" step="10">
+    </label>
+    <label>Protein (g)
+      <input type="number" id="proGoalInput" min="0" step="1">
+    </label>
+    <button class="primary-btn" id="saveGoals" type="button">Save goals</button>
+  </section>
+
+  <section class="rings">
+    <div class="ring-block cal" id="calRingBlock">
+      <svg class="ring-svg" viewBox="0 0 200 200">
+        <defs>
+          <linearGradient id="calGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FF6B4A"/>
+            <stop offset="100%" stop-color="#FFB84C"/>
+          </linearGradient>
+        </defs>
+        <circle class="ring-track" cx="100" cy="100" r="80"/>
+        <circle class="ring-progress" id="calRing" cx="100" cy="100" r="80" stroke="url(#calGrad)"/>
+      </svg>
+      <div class="ring-label">
+        <span class="ring-value numeral" id="calValue">0</span>
+        <span class="ring-goal" id="calGoalLabel">/ 2200</span>
+        <span class="ring-name">calories</span>
+      </div>
+    </div>
+
+    <div class="ring-block pro" id="proRingBlock">
+      <svg class="ring-svg" viewBox="0 0 200 200">
+        <defs>
+          <linearGradient id="proGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#4ADEDE"/>
+            <stop offset="100%" stop-color="#8B6BFF"/>
+          </linearGradient>
+        </defs>
+        <circle class="ring-track" cx="100" cy="100" r="80"/>
+        <circle class="ring-progress" id="proRing" cx="100" cy="100" r="80" stroke="url(#proGrad)"/>
+      </svg>
+      <div class="ring-label">
+        <span class="ring-value numeral" id="proValue">0</span>
+        <span class="ring-goal" id="proGoalLabel">/ 150g</span>
+        <span class="ring-name">protein</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="favorites">
+    <h2>Quick add</h2>
+    <div class="chip-row" id="favRow"></div>
+  </section>
+
+  <section class="logform">
+    <button class="add-toggle" id="toggleForm" type="button">+ Log food</button>
+    <form id="foodForm" hidden>
+      <div class="emoji-picker" id="emojiPicker"></div>
+      <div class="form-row">
+        <input type="text" id="foodName" placeholder="Food name" required maxlength="40">
+      </div>
+      <div class="form-row two">
+        <input type="number" id="foodCal" placeholder="Calories" required min="0" step="1">
+        <input type="number" id="foodPro" placeholder="Protein (g)" required min="0" step="1">
+      </div>
+      <label class="checkbox-row">
+        <input type="checkbox" id="saveFav">
+        Save to quick add
+      </label>
+      <button class="primary-btn" type="submit">Add to log</button>
+    </form>
+  </section>
+
+  <section class="log-list">
+    <h2>Log</h2>
+    <ul id="logList"></ul>
+    <p class="empty" id="emptyState" hidden>Nothing logged yet — add your first bite above.</p>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- storage keys ----------
+     macro_goals            -> { calories, protein }
+     macro_favorites        -> [{ id, emoji, name, calories, protein }]
+     macro_log_YYYY-MM-DD   -> [{ id, emoji, name, calories, protein, time }]
+  -------------------------------------- */
+
+  var EMOJIS = ["🍽","🍗","🥚","🍞","🍚","🥦","🥑","🍎","🥩","🧀","🥛","🍕","🍜","🍌"];
+  var RADIUS = 80;
+  var CIRC = 2 * Math.PI * RADIUS;
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  var currentDate = new Date();
+  var selectedEmoji = EMOJIS[0];
+
+  function pad(n){ return n < 10 ? "0" + n : "" + n; }
+  function dateKey(d){ return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function isSameDay(a, b){ return dateKey(a) === dateKey(b); }
+  function makeId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+  function safeParse(raw, fallback){
+    try {
+      var v = JSON.parse(raw);
+      return v === null || v === undefined ? fallback : v;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  function loadGoals(){
+    return safeParse(localStorage.getItem("macro_goals"), { calories: 2200, protein: 150 });
+  }
+  function saveGoalsToStorage(g){
+    localStorage.setItem("macro_goals", JSON.stringify(g));
+  }
+  function loadFavorites(){
+    return safeParse(localStorage.getItem("macro_favorites"), []);
+  }
+  function saveFavoritesToStorage(f){
+    localStorage.setItem("macro_favorites", JSON.stringify(f));
+  }
+  function loadLog(key){
+    return safeParse(localStorage.getItem("macro_log_" + key), []);
+  }
+  function saveLogToStorage(key, entries){
+    localStorage.setItem("macro_log_" + key, JSON.stringify(entries));
+  }
+
+  /* ---------- rendering ---------- */
+
+  function renderDateNav(){
+    var today = new Date();
+    if (isSameDay(currentDate, today)) {
+      $("dateMain").textContent = "Today";
+    } else {
+      var yest = new Date(today);
+      yest.setDate(yest.getDate() - 1);
+      $("dateMain").textContent = isSameDay(currentDate, yest) ? "Yesterday" :
+        currentDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    }
+    $("dateSub").textContent = currentDate.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+    $("nextDay").disabled = isSameDay(currentDate, today);
+  }
+
+  function setRing(circleEl, pct){
+    circleEl.style.strokeDasharray = CIRC;
+    circleEl.style.strokeDashoffset = CIRC * (1 - Math.min(pct, 1));
+  }
+
+  function renderRings(){
+    var key = dateKey(currentDate);
+    var entries = loadLog(key);
+    var goals = loadGoals();
+    var totals = entries.reduce(function(acc, e){
+      acc.calories += Number(e.calories) || 0;
+      acc.protein += Number(e.protein) || 0;
+      return acc;
+    }, { calories: 0, protein: 0 });
+
+    var calGoal = Number(goals.calories) || 1;
+    var proGoal = Number(goals.protein) || 1;
+
+    $("calValue").textContent = Math.round(totals.calories);
+    $("calGoalLabel").textContent = "/ " + Math.round(calGoal);
+    setRing($("calRing"), totals.calories / calGoal);
+    $("calRingBlock").classList.toggle("over", totals.calories > calGoal);
+
+    $("proValue").textContent = Math.round(totals.protein);
+    $("proGoalLabel").textContent = "/ " + Math.round(proGoal) + "g";
+    setRing($("proRing"), totals.protein / proGoal);
+    $("proRingBlock").classList.toggle("over", totals.protein > proGoal);
+  }
+
+  function renderList(){
+    var key = dateKey(currentDate);
+    var entries = loadLog(key);
+    var list = $("logList");
+    list.innerHTML = "";
+
+    if (entries.length === 0) {
+      $("emptyState").hidden = false;
+      return;
+    }
+    $("emptyState").hidden = true;
+
+    entries.slice().reverse().forEach(function(entry){
+      var li = document.createElement("li");
+
+      var emoji = document.createElement("div");
+      emoji.className = "log-emoji";
+      emoji.textContent = entry.emoji || "🍽";
+
+      var info = document.createElement("div");
+      info.className = "log-info";
+      var name = document.createElement("div");
+      name.className = "log-name";
+      name.textContent = entry.name;
+      var meta = document.createElement("div");
+      meta.className = "log-meta";
+      meta.textContent = Math.round(entry.calories) + " cal · " + Math.round(entry.protein) + "g protein";
+      info.appendChild(name);
+      info.appendChild(meta);
+
+      var del = document.createElement("button");
+      del.className = "log-del";
+      del.setAttribute("aria-label", "Remove " + entry.name);
+      del.textContent = "×";
+      del.addEventListener("click", function(){
+        var remaining = loadLog(key).filter(function(e){ return e.id !== entry.id; });
+        saveLogToStorage(key, remaining);
+        renderRings();
+        renderList();
+      });
+
+      li.appendChild(emoji);
+      li.appendChild(info);
+      li.appendChild(del);
+      list.appendChild(li);
+    });
+  }
+
+  function renderFavorites(){
+    var favorites = loadFavorites();
+    var row = $("favRow");
+    row.innerHTML = "";
+
+    if (favorites.length === 0) {
+      var empty = document.createElement("p");
+      empty.className = "fav-empty";
+      empty.textContent = "No favorites yet — check \u201cSave to quick add\u201d when logging food.";
+      row.appendChild(empty);
+      return;
+    }
+
+    favorites.forEach(function(fav){
+      var wrap = document.createElement("div");
+      wrap.className = "chip-wrap";
+
+      var chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip";
+      chip.textContent = (fav.emoji || "🍽") + " " + fav.name;
+      chip.addEventListener("click", function(){
+        addLogEntry({
+          id: makeId(),
+          emoji: fav.emoji || "🍽",
+          name: fav.name,
+          calories: Number(fav.calories) || 0,
+          protein: Number(fav.protein) || 0,
+          time: new Date().toISOString()
+        });
+      });
+
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "chip-del";
+      del.setAttribute("aria-label", "Remove " + fav.name + " from favorites");
+      del.textContent = "×";
+      del.addEventListener("click", function(){
+        var remaining = loadFavorites().filter(function(f){ return f.id !== fav.id; });
+        saveFavoritesToStorage(remaining);
+        renderFavorites();
+      });
+
+      wrap.appendChild(chip);
+      wrap.appendChild(del);
+      row.appendChild(wrap);
+    });
+  }
+
+  function renderEmojiPicker(){
+    var picker = $("emojiPicker");
+    picker.innerHTML = "";
+    EMOJIS.forEach(function(emoji){
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "emoji-btn" + (emoji === selectedEmoji ? " selected" : "");
+      btn.textContent = emoji;
+      btn.setAttribute("aria-label", "Choose icon " + emoji);
+      btn.addEventListener("click", function(){
+        selectedEmoji = emoji;
+        renderEmojiPicker();
+      });
+      picker.appendChild(btn);
+    });
+  }
+
+  function renderAll(){
+    renderDateNav();
+    renderRings();
+    renderList();
+    renderFavorites();
+  }
+
+  /* ---------- mutation helpers ---------- */
+
+  function addLogEntry(entry){
+    var key = dateKey(currentDate);
+    var entries = loadLog(key);
+    entries.push(entry);
+    saveLogToStorage(key, entries);
+    renderRings();
+    renderList();
+  }
+
+  /* ---------- events ---------- */
+
+  $("prevDay").addEventListener("click", function(){
+    currentDate.setDate(currentDate.getDate() - 1);
+    renderAll();
+  });
+  $("nextDay").addEventListener("click", function(){
+    if ($("nextDay").disabled) return;
+    currentDate.setDate(currentDate.getDate() + 1);
+    renderAll();
+  });
+
+  $("settingsBtn").addEventListener("click", function(){
+    var goals = loadGoals();
+    $("calGoalInput").value = goals.calories;
+    $("proGoalInput").value = goals.protein;
+    $("goalsPanel").hidden = !$("goalsPanel").hidden;
+  });
+  $("saveGoals").addEventListener("click", function(){
+    var calories = Number($("calGoalInput").value);
+    var protein = Number($("proGoalInput").value);
+    if (!calories || calories <= 0 || !protein || protein <= 0) return;
+    saveGoalsToStorage({ calories: calories, protein: protein });
+    $("goalsPanel").hidden = true;
+    renderRings();
+  });
+
+  $("toggleForm").addEventListener("click", function(){
+    var form = $("foodForm");
+    form.hidden = !form.hidden;
+    $("toggleForm").textContent = form.hidden ? "+ Log food" : "– Hide form";
+    if (!form.hidden) $("foodName").focus();
+  });
+
+  $("foodForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var name = $("foodName").value.trim();
+    var calories = Number($("foodCal").value);
+    var protein = Number($("foodPro").value);
+    if (!name || isNaN(calories) || isNaN(protein) || calories < 0 || protein < 0) return;
+
+    var entry = {
+      id: makeId(),
+      emoji: selectedEmoji,
+      name: name,
+      calories: calories,
+      protein: protein,
+      time: new Date().toISOString()
+    };
+    addLogEntry(entry);
+
+    if ($("saveFav").checked) {
+      var favorites = loadFavorites();
+      var exists = favorites.some(function(f){
+        return f.name.toLowerCase() === name.toLowerCase() && f.calories === calories && f.protein === protein;
+      });
+      if (!exists) {
+        favorites.push({ id: makeId(), emoji: selectedEmoji, name: name, calories: calories, protein: protein });
+        saveFavoritesToStorage(favorites);
+        renderFavorites();
+      }
+    }
+
+    $("foodForm").reset();
+    selectedEmoji = EMOJIS[0];
+    renderEmojiPicker();
+    $("foodForm").hidden = true;
+    $("toggleForm").textContent = "+ Log food";
+  });
+
+  /* ---------- init ---------- */
+  renderEmojiPicker();
+  renderAll();
+})();
+</script>
+</body>
+</html>
